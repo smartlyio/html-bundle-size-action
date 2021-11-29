@@ -1,16 +1,13 @@
 import * as core from '@actions/core'
-import {wait} from './wait'
+
+import bundleSize from './bundle-size'
 
 async function run(): Promise<void> {
   try {
-    const ms: string = core.getInput('milliseconds')
-    core.debug(`Waiting ${ms} milliseconds ...`) // debug is only output if you set the secret `ACTIONS_STEP_DEBUG` to true
-
-    core.debug(new Date().toTimeString())
-    await wait(parseInt(ms, 10))
-    core.debug(new Date().toTimeString())
-
-    core.setOutput('time', new Date().toTimeString())
+    const path: string = core.getInput('path')
+    const base: string = core.getInput('base')
+    const size = await bundleSize({path, base})
+    core.setOutput('size', size)
   } catch (error) {
     if (error instanceof Error) core.setFailed(error.message)
   }
