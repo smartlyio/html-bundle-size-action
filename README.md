@@ -16,13 +16,24 @@ Calculate the total size of a HTML bundle's assets.
 
 **Optional** Base URL for assets referenced with relative URLs
 
+## Outputs
+
+### size
+
+Total bundle size of assets in bundle in bytes.
+
 ## Example usage
 
 ```yaml
-uses: smartlyio/html-bundle-size-action
-with:
-  path: ./bundle.html
-  base: https://cdn.example
+- uses: smartlyio/html-bundle-size-action@main
+  id: bundle
+  with:
+    path: ./bundle.html
+    base: https://cdn.example
+- run: |
+    echo "Bundle size: $BUNDLE_SIZE"
+  env:
+    BUNDLE_SIZE: ${{ steps.bundle.outputs.size }}
 ```
 
 ## Development
