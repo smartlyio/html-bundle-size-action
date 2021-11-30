@@ -20,5 +20,14 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: ./
+        id: bundle
         with:
-          milliseconds: 1000
+          path: './__tests__/fixtures/jquery.html'
+      - run: |
+          if [ $EXPECTED_BUNDLE_SIZE -gt $ACTUAL_BUNDLE_SIZE ]; then
+            echo "Actual bundle size $ACTUAL_BUNDLE_SIZE does not match expeced bundle size $EXPECTED_BUNDLE_SIZE"
+            exit 1
+          fi
+        env:
+          ACTUAL_BUNDLE_SIZE: ${{ steps.bundle.outputs.size }}
+          EXPECTED_BUNDLE_SIZE: '89501'
