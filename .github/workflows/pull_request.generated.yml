@@ -1,0 +1,66 @@
+# IMPORTANT NOTE/WARNING!
+# Do not make changes to this file, your changes will be overwritten.
+#
+# This file is automagically generated from:
+# - .github/templates/pull_request.yml.erb
+# - Templates contained in the smartlyio/github-actions-templates repository
+#
+# This file can be updated by editing the template file, and running `devbox render workflows`
+
+name: "Pull Request"
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-18.04
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set Node.js 12.x
+      uses: actions/setup-node@v2.4.1
+      with:
+        node-version: 12.x
+    - name: "Install"
+      run: |
+        npm ci
+    - name: "Prettier"
+      run: |
+        npm run format-check
+    - name: "Lint"
+      run: |
+        npm run lint
+    - name: "Test"
+      run: |
+        npm run test
+    - name: "build"
+      run: |
+        npm run build
+        npm run package
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set Node.js 12.x
+        uses: actions/setup-node@v2.4.1
+        with:
+        node-version: 12.x
+      - name: "Build action for test"
+        run: |
+          npm ci
+          npm run all
+          git clean -fXd
+      - uses: ./
+        id: bundle
+        with:
+          path: './__tests__/fixtures/jquery.html'
+      - run: |
+          if [ $EXPECTED_BUNDLE_SIZE -gt $ACTUAL_BUNDLE_SIZE ]; then
+            echo "Actual bundle size $ACTUAL_BUNDLE_SIZE does not match expeced bundle size $EXPECTED_BUNDLE_SIZE"
+            exit 1
+          fi
+        env:
+          ACTUAL_BUNDLE_SIZE: ${{ steps.bundle.outputs.size }}
+          EXPECTED_BUNDLE_SIZE: '89501'
