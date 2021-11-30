@@ -2,10 +2,16 @@ name: 'Your name here'
 description: 'Provide a description here'
 author: 'Your name or organization here'
 inputs:
-  milliseconds: # change this
+  path:
     required: true
-    description: 'input description here'
-    default: 'default value if applicable'
+    description: "Path to index.html file on local filesystem to discover build assets"
+  base:
+    required: false
+    description: "Base to use to convert relative URLs to absolute"
+    default: ""
+outputs:
+  size:
+    description: "Size in bytes of the full build bundle"
 runs:
   using: 'node12'
   main: 'dist/index.js'

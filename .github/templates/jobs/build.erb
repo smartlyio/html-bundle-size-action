@@ -1,0 +1,24 @@
+build:
+  runs-on: <%= ubuntu_version %>
+  steps:
+  - uses: actions/checkout@v2
+  - name: Set Node.js 12.x
+    uses: actions/setup-node@v2.4.1
+    with:
+      node-version: 12.x
+  - name: "Install"
+    run: |
+      npm ci
+  - name: "Prettier"
+    run: |
+      npm run format-check
+  - name: "Lint"
+    run: |
+      npm run lint
+  - name: "Test"
+    run: |
+      npm run test
+  - name: "build"
+    run: |
+      npm run build
+      npm run package
