@@ -6,6 +6,11 @@
 
 Calculate the total size of a HTML bundle's assets.
 
+### Limitations
+
+* does not include transitive dependencies, e.g. dynamic imports, images in stylesheets
+* images are not handled
+
 ## Inputs
 
 ### path
