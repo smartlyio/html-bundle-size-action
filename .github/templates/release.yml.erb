@@ -24,8 +24,8 @@ jobs:
           node-version: 12.x
       - name: Configure git
         run: |
-          git config user.name "Github Action"
-          git config user.email "bot@github-actions"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
       @import smartlyio/steps/util/get_next_semantic_version
       @import smartlyio/steps/util/check_branch_behind (is_base_ref: true, remote_update: true)
       - name: Create release
