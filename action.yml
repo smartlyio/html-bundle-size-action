@@ -13,5 +13,5 @@ outputs:
   size:
     description: "Size in bytes of the full build bundle"
 runs:
-  using: 'node12'
+  using: 'node16'
   main: 'dist/index.js'
