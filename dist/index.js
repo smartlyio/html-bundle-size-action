@@ -590,6 +590,11 @@ function getIDToken(aud) {
     });
 }
 exports.getIDToken = getIDToken;
+/**
+ * Markdown summary exports
+ */
+var markdown_summary_1 = __nccwpck_require__(8042);
+Object.defineProperty(exports, "markdownSummary", ({ enumerable: true, get: function () { return markdown_summary_1.markdownSummary; } }));
 //# sourceMappingURL=core.js.map
 
 /***/ }),
@@ -640,6 +645,292 @@ function issueCommand(command, message) {
 }
 exports.issueCommand = issueCommand;
 //# sourceMappingURL=file-command.js.map
+
+/***/ }),
+
+/***/ 8042:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.markdownSummary = exports.SUMMARY_DOCS_URL = exports.SUMMARY_ENV_VAR = void 0;
+const os_1 = __nccwpck_require__(2037);
+const fs_1 = __nccwpck_require__(7147);
+const { access, appendFile, writeFile } = fs_1.promises;
+exports.SUMMARY_ENV_VAR = 'GITHUB_STEP_SUMMARY';
+exports.SUMMARY_DOCS_URL = 'https://docs.github.com/actions/using-workflows/workflow-commands-for-github-actions#adding-a-markdown-summary';
+class MarkdownSummary {
+    constructor() {
+        this._buffer = '';
+    }
+    /**
+     * Finds the summary file path from the environment, rejects if env var is not found or file does not exist
+     * Also checks r/w permissions.
+     *
+     * @returns step summary file path
+     */
+    filePath() {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (this._filePath) {
+                return this._filePath;
+            }
+            const pathFromEnv = process.env[exports.SUMMARY_ENV_VAR];
+            if (!pathFromEnv) {
+                throw new Error(`Unable to find environment variable for $${exports.SUMMARY_ENV_VAR}. Check if your runtime environment supports markdown summaries.`);
+            }
+            try {
+                yield access(pathFromEnv, fs_1.constants.R_OK | fs_1.constants.W_OK);
+            }
+            catch (_a) {
+                throw new Error(`Unable to access summary file: '${pathFromEnv}'. Check if the file has correct read/write permissions.`);
+            }
+            this._filePath = pathFromEnv;
+            return this._filePath;
+        });
+    }
+    /**
+     * Wraps content in an HTML tag, adding any HTML attributes
+     *
+     * @param {string} tag HTML tag to wrap
+     * @param {string | null} content content within the tag
+     * @param {[attribute: string]: string} attrs key-value list of HTML attributes to add
+     *
+     * @returns {string} content wrapped in HTML element
+     */
+    wrap(tag, content, attrs = {}) {
+        const htmlAttrs = Object.entries(attrs)
+            .map(([key, value]) => ` ${key}="${value}"`)
+            .join('');
+        if (!content) {
+            return `<${tag}${htmlAttrs}>`;
+        }
+        return `<${tag}${htmlAttrs}>${content}</${tag}>`;
+    }
+    /**
+     * Writes text in the buffer to the summary buffer file and empties buffer. Will append by default.
+     *
+     * @param {SummaryWriteOptions} [options] (optional) options for write operation
+     *
+     * @returns {Promise<MarkdownSummary>} markdown summary instance
+     */
+    write(options) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const overwrite = !!(options === null || options === void 0 ? void 0 : options.overwrite);
+            const filePath = yield this.filePath();
+            const writeFunc = overwrite ? writeFile : appendFile;
+            yield writeFunc(filePath, this._buffer, { encoding: 'utf8' });
+            return this.emptyBuffer();
+        });
+    }
+    /**
+     * Clears the summary buffer and wipes the summary file
+     *
+     * @returns {MarkdownSummary} markdown summary instance
+     */
+    clear() {
+        return __awaiter(this, void 0, void 0, function* () {
+            return this.emptyBuffer().write({ overwrite: true });
+        });
+    }
+    /**
+     * Returns the current summary buffer as a string
+     *
+     * @returns {string} string of summary buffer
+     */
+    stringify() {
+        return this._buffer;
+    }
+    /**
+     * If the summary buffer is empty
+     *
+     * @returns {boolen} true if the buffer is empty
+     */
+    isEmptyBuffer() {
+        return this._buffer.length === 0;
+    }
+    /**
+     * Resets the summary buffer without writing to summary file
+     *
+     * @returns {MarkdownSummary} markdown summary instance
+     */
+    emptyBuffer() {
+        this._buffer = '';
+        return this;
+    }
+    /**
+     * Adds raw text to the summary buffer
+     *
+     * @param {string} text content to add
+     * @param {boolean} [addEOL=false] (optional) append an EOL to the raw text (default: false)
+     *
+     * @returns {MarkdownSummary} markdown summary instance
+     */
+    addRaw(text, addEOL = false) {
+        this._buffer += text;
+        return addEOL ? this.addEOL() : this;
+    }
+    /**
+     * Adds the operating system-specific end-of-line marker to the buffer
+     *
+     * @returns {MarkdownSummary} markdown summary instance
+     */
+    addEOL() {
+        return this.addRaw(os_1.EOL);
+    }
+    /**
+     * Adds an HTML codeblock to the summary buffer
+     *
+     * @param {string} code content to render within fenced code block
+     * @param {string} lang (optional) language to syntax highlight code
+     *
+     * @returns {MarkdownSummary} markdown summary instance
+     */
+    addCodeBlock(code, lang) {
+        const attrs = Object.assign({}, (lang && { lang }));
+        const element = this.wrap('pre', this.wrap('code', code), attrs);
+        return this.addRaw(element).addEOL();
+    }
+    /**
+     * Adds an HTML list to the summary buffer
+     *
+     * @param {string[]} items list of items to render
+     * @param {boolean} [ordered=false] (optional) if the rendered list should be ordered or not (default: false)
+     *
+     * @returns {MarkdownSummary} markdown summary instance
+     */
+    addList(items, ordered = false) {
+        const tag = ordered ? 'ol' : 'ul';
+        const listItems = items.map(item => this.wrap('li', item)).join('');
+        const element = this.wrap(tag, listItems);
+        return this.addRaw(element).addEOL();
+    }
+    /**
+     * Adds an HTML table to the summary buffer
+     *
+     * @param {SummaryTableCell[]} rows table rows
+     *
+     * @returns {MarkdownSummary} markdown summary instance
+     */
+    addTable(rows) {
+        const tableBody = rows
+            .map(row => {
+            const cells = row
+                .map(cell => {
+                if (typeof cell === 'string') {
+                    return this.wrap('td', cell);
+                }
+                const { header, data, colspan, rowspan } = cell;
+                const tag = header ? 'th' : 'td';
+                const attrs = Object.assign(Object.assign({}, (colspan && { colspan })), (rowspan && { rowspan }));
+                return this.wrap(tag, data, attrs);
+            })
+                .join('');
+            return this.wrap('tr', cells);
+        })
+            .join('');
+        const element = this.wrap('table', tableBody);
+        return this.addRaw(element).addEOL();
+    }
+    /**
+     * Adds a collapsable HTML details element to the summary buffer
+     *
+     * @param {string} label text for the closed state
+     * @param {string} content collapsable content
+     *
+     * @returns {MarkdownSummary} markdown summary instance
+     */
+    addDetails(label, content) {
+        const element = this.wrap('details', this.wrap('summary', label) + content);
+        return this.addRaw(element).addEOL();
+    }
+    /**
+     * Adds an HTML image tag to the summary buffer
+     *
+     * @param {string} src path to the image you to embed
+     * @param {string} alt text description of the image
+     * @param {SummaryImageOptions} options (optional) addition image attributes
+     *
+     * @returns {MarkdownSummary} markdown summary instance
+     */
+    addImage(src, alt, options) {
+        const { width, height } = options || {};
+        const attrs = Object.assign(Object.assign({}, (width && { width })), (height && { height }));
+        const element = this.wrap('img', null, Object.assign({ src, alt }, attrs));
+        return this.addRaw(element).addEOL();
+    }
+    /**
+     * Adds an HTML section heading element
+     *
+     * @param {string} text heading text
+     * @param {number | string} [level=1] (optional) the heading level, default: 1
+     *
+     * @returns {MarkdownSummary} markdown summary instance
+     */
+    addHeading(text, level) {
+        const tag = `h${level}`;
+        const allowedTag = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(tag)
+            ? tag
+            : 'h1';
+        const element = this.wrap(allowedTag, text);
+        return this.addRaw(element).addEOL();
+    }
+    /**
+     * Adds an HTML thematic break (<hr>) to the summary buffer
+     *
+     * @returns {MarkdownSummary} markdown summary instance
+     */
+    addSeparator() {
+        const element = this.wrap('hr', null);
+        return this.addRaw(element).addEOL();
+    }
+    /**
+     * Adds an HTML line break (<br>) to the summary buffer
+     *
+     * @returns {MarkdownSummary} markdown summary instance
+     */
+    addBreak() {
+        const element = this.wrap('br', null);
+        return this.addRaw(element).addEOL();
+    }
+    /**
+     * Adds an HTML blockquote to the summary buffer
+     *
+     * @param {string} text quote text
+     * @param {string} cite (optional) citation url
+     *
+     * @returns {MarkdownSummary} markdown summary instance
+     */
+    addQuote(text, cite) {
+        const attrs = Object.assign({}, (cite && { cite }));
+        const element = this.wrap('blockquote', text, attrs);
+        return this.addRaw(element).addEOL();
+    }
+    /**
+     * Adds an HTML anchor tag to the summary buffer
+     *
+     * @param {string} text link text/content
+     * @param {string} href hyperlink
+     *
+     * @returns {MarkdownSummary} markdown summary instance
+     */
+    addLink(text, href) {
+        const element = this.wrap('a', text, { href });
+        return this.addRaw(element).addEOL();
+    }
+}
+// singleton export
+exports.markdownSummary = new MarkdownSummary();
+//# sourceMappingURL=markdown-summary.js.map
 
 /***/ }),
 
@@ -1515,7 +1806,11 @@ var __assign = (this && this.__assign) || function () {
 };
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
 }) : (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     o[k2] = m[k];
@@ -1532,14 +1827,18 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
-var __spreadArray = (this && this.__spreadArray) || function (to, from) {
-    for (var i = 0, il = from.length, j = to.length; i < il; i++, j++)
-        to[j] = from[i];
-    return to;
+var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
+    if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
+        if (ar || !(i in from)) {
+            if (!ar) ar = Array.prototype.slice.call(from, 0, i);
+            ar[i] = from[i];
+        }
+    }
+    return to.concat(ar || Array.prototype.slice.call(from));
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.select = exports.filter = exports.some = exports.is = exports.aliases = exports.pseudos = exports.filters = void 0;
-var css_what_1 = __nccwpck_require__(9218);
+var css_what_1 = __nccwpck_require__(284);
 var css_select_1 = __nccwpck_require__(4508);
 var DomUtils = __importStar(__nccwpck_require__(1754));
 var helpers_1 = __nccwpck_require__(8513);
@@ -1551,13 +1850,16 @@ Object.defineProperty(exports, "pseudos", ({ enumerable: true, get: function () 
 Object.defineProperty(exports, "aliases", ({ enumerable: true, get: function () { return css_select_2.aliases; } }));
 /** Used to indicate a scope should be filtered. Might be ignored when filtering. */
 var SCOPE_PSEUDO = {
-    type: "pseudo",
+    type: css_what_1.SelectorType.Pseudo,
     name: "scope",
     data: null,
 };
 /** Used for actually filtering for scope. */
 var CUSTOM_SCOPE_PSEUDO = __assign({}, SCOPE_PSEUDO);
-var UNIVERSAL_SELECTOR = { type: "universal", namespace: null };
+var UNIVERSAL_SELECTOR = {
+    type: css_what_1.SelectorType.Universal,
+    namespace: null,
+};
 function is(element, selector, options) {
     if (options === void 0) { options = {}; }
     return some([element], selector, options);
@@ -1567,8 +1869,8 @@ function some(elements, selector, options) {
     if (options === void 0) { options = {}; }
     if (typeof selector === "function")
         return elements.some(selector);
-    var _a = helpers_1.groupSelectors(css_what_1.parse(selector, options)), plain = _a[0], filtered = _a[1];
-    return ((plain.length > 0 && elements.some(css_select_1._compileToken(plain, options))) ||
+    var _a = (0, helpers_1.groupSelectors)((0, css_what_1.parse)(selector)), plain = _a[0], filtered = _a[1];
+    return ((plain.length > 0 && elements.some((0, css_select_1._compileToken)(plain, options))) ||
         filtered.some(function (sel) { return filterBySelector(sel, elements, options).length > 0; }));
 }
 exports.some = some;
@@ -1600,7 +1902,7 @@ function filterByPosition(filter, elems, data, options) {
 }
 function filter(selector, elements, options) {
     if (options === void 0) { options = {}; }
-    return filterParsed(css_what_1.parse(selector, options), elements, options);
+    return filterParsed((0, css_what_1.parse)(selector), elements, options);
 }
 exports.filter = filter;
 /**
@@ -1615,7 +1917,7 @@ exports.filter = filter;
 function filterParsed(selector, elements, options) {
     if (elements.length === 0)
         return [];
-    var _a = helpers_1.groupSelectors(selector), plainSelectors = _a[0], filteredSelectors = _a[1];
+    var _a = (0, helpers_1.groupSelectors)(selector), plainSelectors = _a[0], filteredSelectors = _a[1];
     var found;
     if (plainSelectors.length) {
         var filtered = filterElements(elements, plainSelectors, options);
@@ -1668,8 +1970,8 @@ function filterBySelector(selector, elements, options) {
          * Get root node, run selector with the scope
          * set to all of our nodes.
          */
-        var root = (_a = options.root) !== null && _a !== void 0 ? _a : helpers_1.getDocumentRoot(elements[0]);
-        var sel = __spreadArray(__spreadArray([], selector), [CUSTOM_SCOPE_PSEUDO]);
+        var root = (_a = options.root) !== null && _a !== void 0 ? _a : (0, helpers_1.getDocumentRoot)(elements[0]);
+        var sel = __spreadArray(__spreadArray([], selector, true), [CUSTOM_SCOPE_PSEUDO], false);
         return findFilterElements(root, sel, options, true, elements);
     }
     // Performance optimization: If we don't have to traverse, just filter set.
@@ -1680,7 +1982,7 @@ function select(selector, root, options) {
     if (typeof selector === "function") {
         return find(root, selector);
     }
-    var _a = helpers_1.groupSelectors(css_what_1.parse(selector, options)), plain = _a[0], filtered = _a[1];
+    var _a = (0, helpers_1.groupSelectors)((0, css_what_1.parse)(selector)), plain = _a[0], filtered = _a[1];
     var results = filtered.map(function (sel) {
         return findFilterElements(root, sel, options, true);
     });
@@ -1688,16 +1990,22 @@ function select(selector, root, options) {
     if (plain.length) {
         results.push(findElements(root, plain, options, Infinity));
     }
+    if (results.length === 0) {
+        return [];
+    }
     // If there was only a single selector, just return the result
     if (results.length === 1) {
         return results[0];
     }
     // Sort results, filtering for duplicates
-    return DomUtils.uniqueSort(results.reduce(function (a, b) { return __spreadArray(__spreadArray([], a), b); }));
+    return DomUtils.uniqueSort(results.reduce(function (a, b) { return __spreadArray(__spreadArray([], a, true), b, true); }));
 }
 exports.select = select;
 // Traversals that are treated differently in css-select.
-var specialTraversal = new Set(["descendant", "adjacent"]);
+var specialTraversal = new Set([
+    css_what_1.SelectorType.Descendant,
+    css_what_1.SelectorType.Adjacent,
+]);
 function includesScopePseudo(t) {
     return (t !== SCOPE_PSEUDO &&
         t.type === "pseudo" &&
@@ -1725,7 +2033,7 @@ function findFilterElements(root, selector, options, queryForSelector, scopeCont
      * Set the number of elements to retrieve.
      * Eg. for :first, we only have to get a single element.
      */
-    var limit = positionals_1.getLimit(filter.name, filter.data);
+    var limit = (0, positionals_1.getLimit)(filter.name, filter.data);
     if (limit === 0)
         return [];
     var subOpts = addContextIfScope(sub, options, scopeContext);
@@ -1782,19 +2090,19 @@ function findFilterElements(root, selector, options, queryForSelector, scopeCont
 function findElements(root, sel, options, limit) {
     if (limit === 0)
         return [];
-    var query = css_select_1._compileToken(sel, options, root);
+    var query = (0, css_select_1._compileToken)(sel, options, root);
     return find(root, query, limit);
 }
 function find(root, query, limit) {
     if (limit === void 0) { limit = Infinity; }
-    var elems = css_select_1.prepareContext(root, DomUtils, query.shouldTestNextSiblings);
+    var elems = (0, css_select_1.prepareContext)(root, DomUtils, query.shouldTestNextSiblings);
     return DomUtils.find(function (node) { return DomUtils.isTag(node) && query(node); }, elems, true, limit);
 }
 function filterElements(elements, sel, options) {
     var els = (Array.isArray(elements) ? elements : [elements]).filter(DomUtils.isTag);
     if (els.length === 0)
         return els;
-    var query = css_select_1._compileToken(sel, options);
+    var query = (0, css_select_1._compileToken)(sel, options);
     return els.filter(query);
 }
 
@@ -5187,14 +5495,75 @@ function escapeRegex(value) {
     return value.replace(reChars, "\\$&");
 }
 /**
+ * Attributes that are case-insensitive in HTML.
+ *
+ * @private
+ * @see https://html.spec.whatwg.org/multipage/semantics-other.html#case-sensitivity-of-selectors
+ */
+var caseInsensitiveAttributes = new Set([
+    "accept",
+    "accept-charset",
+    "align",
+    "alink",
+    "axis",
+    "bgcolor",
+    "charset",
+    "checked",
+    "clear",
+    "codetype",
+    "color",
+    "compact",
+    "declare",
+    "defer",
+    "dir",
+    "direction",
+    "disabled",
+    "enctype",
+    "face",
+    "frame",
+    "hreflang",
+    "http-equiv",
+    "lang",
+    "language",
+    "link",
+    "media",
+    "method",
+    "multiple",
+    "nohref",
+    "noresize",
+    "noshade",
+    "nowrap",
+    "readonly",
+    "rel",
+    "rev",
+    "rules",
+    "scope",
+    "scrolling",
+    "selected",
+    "shape",
+    "target",
+    "text",
+    "type",
+    "valign",
+    "valuetype",
+    "vlink",
+]);
+function shouldIgnoreCase(selector, options) {
+    return typeof selector.ignoreCase === "boolean"
+        ? selector.ignoreCase
+        : selector.ignoreCase === "quirks"
+            ? !!options.quirksMode
+            : !options.xmlMode && caseInsensitiveAttributes.has(selector.name);
+}
+/**
  * Attribute selectors
  */
 exports.attributeRules = {
-    equals: function (next, data, _a) {
-        var adapter = _a.adapter;
+    equals: function (next, data, options) {
+        var adapter = options.adapter;
         var name = data.name;
         var value = data.value;
-        if (data.ignoreCase) {
+        if (shouldIgnoreCase(data, options)) {
             value = value.toLowerCase();
             return function (elem) {
                 var attr = adapter.getAttributeValue(elem, name);
@@ -5208,12 +5577,12 @@ exports.attributeRules = {
             return adapter.getAttributeValue(elem, name) === value && next(elem);
         };
     },
-    hyphen: function (next, data, _a) {
-        var adapter = _a.adapter;
+    hyphen: function (next, data, options) {
+        var adapter = options.adapter;
         var name = data.name;
         var value = data.value;
         var len = value.length;
-        if (data.ignoreCase) {
+        if (shouldIgnoreCase(data, options)) {
             value = value.toLowerCase();
             return function hyphenIC(elem) {
                 var attr = adapter.getAttributeValue(elem, name);
@@ -5231,13 +5600,13 @@ exports.attributeRules = {
                 next(elem));
         };
     },
-    element: function (next, _a, _b) {
-        var name = _a.name, value = _a.value, ignoreCase = _a.ignoreCase;
-        var adapter = _b.adapter;
+    element: function (next, data, options) {
+        var adapter = options.adapter;
+        var name = data.name, value = data.value;
         if (/\s/.test(value)) {
             return boolbase_1.falseFunc;
         }
-        var regex = new RegExp("(?:^|\\s)" + escapeRegex(value) + "(?:$|\\s)", ignoreCase ? "i" : "");
+        var regex = new RegExp("(?:^|\\s)".concat(escapeRegex(value), "(?:$|\\s)"), shouldIgnoreCase(data, options) ? "i" : "");
         return function element(elem) {
             var attr = adapter.getAttributeValue(elem, name);
             return (attr != null &&
@@ -5251,15 +5620,15 @@ exports.attributeRules = {
         var adapter = _b.adapter;
         return function (elem) { return adapter.hasAttrib(elem, name) && next(elem); };
     },
-    start: function (next, data, _a) {
-        var adapter = _a.adapter;
+    start: function (next, data, options) {
+        var adapter = options.adapter;
         var name = data.name;
         var value = data.value;
         var len = value.length;
         if (len === 0) {
             return boolbase_1.falseFunc;
         }
-        if (data.ignoreCase) {
+        if (shouldIgnoreCase(data, options)) {
             value = value.toLowerCase();
             return function (elem) {
                 var attr = adapter.getAttributeValue(elem, name);
@@ -5275,15 +5644,15 @@ exports.attributeRules = {
                 next(elem);
         };
     },
-    end: function (next, data, _a) {
-        var adapter = _a.adapter;
+    end: function (next, data, options) {
+        var adapter = options.adapter;
         var name = data.name;
         var value = data.value;
         var len = -value.length;
         if (len === 0) {
             return boolbase_1.falseFunc;
         }
-        if (data.ignoreCase) {
+        if (shouldIgnoreCase(data, options)) {
             value = value.toLowerCase();
             return function (elem) {
                 var _a;
@@ -5297,13 +5666,13 @@ exports.attributeRules = {
                 next(elem);
         };
     },
-    any: function (next, data, _a) {
-        var adapter = _a.adapter;
+    any: function (next, data, options) {
+        var adapter = options.adapter;
         var name = data.name, value = data.value;
         if (value === "") {
             return boolbase_1.falseFunc;
         }
-        if (data.ignoreCase) {
+        if (shouldIgnoreCase(data, options)) {
             var regex_1 = new RegExp(escapeRegex(value), "i");
             return function anyIC(elem) {
                 var attr = adapter.getAttributeValue(elem, name);
@@ -5319,8 +5688,8 @@ exports.attributeRules = {
                 next(elem);
         };
     },
-    not: function (next, data, _a) {
-        var adapter = _a.adapter;
+    not: function (next, data, options) {
+        var adapter = options.adapter;
         var name = data.name;
         var value = data.value;
         if (value === "") {
@@ -5328,7 +5697,7 @@ exports.attributeRules = {
                 return !!adapter.getAttributeValue(elem, name) && next(elem);
             };
         }
-        else if (data.ignoreCase) {
+        else if (shouldIgnoreCase(data, options)) {
             value = value.toLowerCase();
             return function (elem) {
                 var attr = adapter.getAttributeValue(elem, name);
@@ -5357,7 +5726,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.compileToken = exports.compileUnsafe = exports.compile = void 0;
-var css_what_1 = __nccwpck_require__(9218);
+var css_what_1 = __nccwpck_require__(284);
 var boolbase_1 = __nccwpck_require__(4159);
 var sort_1 = __importDefault(__nccwpck_require__(7320));
 var procedure_1 = __nccwpck_require__(7396);
@@ -5372,11 +5741,11 @@ var subselects_1 = __nccwpck_require__(5813);
  */
 function compile(selector, options, context) {
     var next = compileUnsafe(selector, options, context);
-    return subselects_1.ensureIsTag(next, options.adapter);
+    return (0, subselects_1.ensureIsTag)(next, options.adapter);
 }
 exports.compile = compile;
 function compileUnsafe(selector, options, context) {
-    var token = typeof selector === "string" ? css_what_1.parse(selector, options) : selector;
+    var token = typeof selector === "string" ? (0, css_what_1.parse)(selector) : selector;
     return compileToken(token, options, context);
 }
 exports.compileUnsafe = compileUnsafe;
@@ -5386,11 +5755,15 @@ function includesScopePseudo(t) {
             (Array.isArray(t.data) &&
                 t.data.some(function (data) { return data.some(includesScopePseudo); }))));
 }
-var DESCENDANT_TOKEN = { type: "descendant" };
+var DESCENDANT_TOKEN = { type: css_what_1.SelectorType.Descendant };
 var FLEXIBLE_DESCENDANT_TOKEN = {
     type: "_flexibleDescendant",
 };
-var SCOPE_TOKEN = { type: "pseudo", name: "scope", data: null };
+var SCOPE_TOKEN = {
+    type: css_what_1.SelectorType.Pseudo,
+    name: "scope",
+    data: null,
+};
 /*
  * CSS 4 Spec (Draft): 3.3.1. Absolutizing a Scope-relative Selector
  * http://www.w3.org/TR/selectors4/#absolutizing
@@ -5404,7 +5777,7 @@ function absolutize(token, _a, context) {
     }));
     for (var _i = 0, token_1 = token; _i < token_1.length; _i++) {
         var t = token_1[_i];
-        if (t.length > 0 && procedure_1.isTraversal(t[0]) && t[0].type !== "descendant") {
+        if (t.length > 0 && (0, procedure_1.isTraversal)(t[0]) && t[0].type !== "descendant") {
             // Don't continue in else branch
         }
         else if (hasContext && !t.some(includesScopePseudo)) {
@@ -5452,7 +5825,7 @@ function compileRules(rules, options, context) {
     return rules.reduce(function (previous, rule) {
         return previous === boolbase_1.falseFunc
             ? boolbase_1.falseFunc
-            : general_1.compileGeneralSelector(previous, rule, options, context, compileToken);
+            : (0, general_1.compileGeneralSelector)(previous, rule, options, context, compileToken);
     }, (_a = options.rootFunc) !== null && _a !== void 0 ? _a : boolbase_1.trueFunc);
 }
 function reduceRules(a, b) {
@@ -5479,25 +5852,46 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.compileGeneralSelector = void 0;
 var attributes_1 = __nccwpck_require__(6863);
 var pseudo_selectors_1 = __nccwpck_require__(9312);
+var css_what_1 = __nccwpck_require__(284);
 /*
  * All available rules
  */
 function compileGeneralSelector(next, selector, options, context, compileToken) {
     var adapter = options.adapter, equals = options.equals;
     switch (selector.type) {
-        case "pseudo-element":
+        case css_what_1.SelectorType.PseudoElement: {
             throw new Error("Pseudo-elements are not supported by css-select");
-        case "attribute":
+        }
+        case css_what_1.SelectorType.ColumnCombinator: {
+            throw new Error("Column combinators are not yet supported by css-select");
+        }
+        case css_what_1.SelectorType.Attribute: {
+            if (selector.namespace != null) {
+                throw new Error("Namespaced attributes are not yet supported by css-select");
+            }
+            if (!options.xmlMode || options.lowerCaseAttributeNames) {
+                selector.name = selector.name.toLowerCase();
+            }
             return attributes_1.attributeRules[selector.action](next, selector, options);
-        case "pseudo":
-            return pseudo_selectors_1.compilePseudoSelector(next, selector, options, context, compileToken);
+        }
+        case css_what_1.SelectorType.Pseudo: {
+            return (0, pseudo_selectors_1.compilePseudoSelector)(next, selector, options, context, compileToken);
+        }
         // Tags
-        case "tag":
+        case css_what_1.SelectorType.Tag: {
+            if (selector.namespace != null) {
+                throw new Error("Namespaced tag names are not yet supported by css-select");
+            }
+            var name_1 = selector.name;
+            if (!options.xmlMode || options.lowerCaseTags) {
+                name_1 = name_1.toLowerCase();
+            }
             return function tag(elem) {
-                return adapter.getName(elem) === selector.name && next(elem);
+                return adapter.getName(elem) === name_1 && next(elem);
             };
+        }
         // Traversal
-        case "descendant":
+        case css_what_1.SelectorType.Descendant: {
             if (options.cacheResults === false ||
                 typeof WeakSet === "undefined") {
                 return function descendant(elem) {
@@ -5511,7 +5905,6 @@ function compileGeneralSelector(next, selector, options, context, compileToken) 
                 };
             }
             // @ts-expect-error `ElementNode` is not extending object
-            // eslint-disable-next-line no-case-declarations
             var isFalseCache_1 = new WeakSet();
             return function cachedDescendant(elem) {
                 var current = elem;
@@ -5525,7 +5918,8 @@ function compileGeneralSelector(next, selector, options, context, compileToken) 
                 }
                 return false;
             };
-        case "_flexibleDescendant":
+        }
+        case "_flexibleDescendant": {
             // Include element itself, only used while querying an array
             return function flexibleDescendant(elem) {
                 var current = elem;
@@ -5535,18 +5929,21 @@ function compileGeneralSelector(next, selector, options, context, compileToken) 
                 } while ((current = adapter.getParent(current)));
                 return false;
             };
-        case "parent":
+        }
+        case css_what_1.SelectorType.Parent: {
             return function parent(elem) {
                 return adapter
                     .getChildren(elem)
                     .some(function (elem) { return adapter.isTag(elem) && next(elem); });
             };
-        case "child":
+        }
+        case css_what_1.SelectorType.Child: {
             return function child(elem) {
                 var parent = adapter.getParent(elem);
                 return parent != null && adapter.isTag(parent) && next(parent);
             };
-        case "sibling":
+        }
+        case css_what_1.SelectorType.Sibling: {
             return function sibling(elem) {
                 var siblings = adapter.getSiblings(elem);
                 for (var i = 0; i < siblings.length; i++) {
@@ -5559,7 +5956,14 @@ function compileGeneralSelector(next, selector, options, context, compileToken) 
                 }
                 return false;
             };
-        case "adjacent":
+        }
+        case css_what_1.SelectorType.Adjacent: {
+            if (adapter.prevElementSibling) {
+                return function adjacent(elem) {
+                    var previous = adapter.prevElementSibling(elem);
+                    return previous != null && next(previous);
+                };
+            }
             return function adjacent(elem) {
                 var siblings = adapter.getSiblings(elem);
                 var lastElement;
@@ -5573,8 +5977,13 @@ function compileGeneralSelector(next, selector, options, context, compileToken) 
                 }
                 return !!lastElement && next(lastElement);
             };
-        case "universal":
+        }
+        case css_what_1.SelectorType.Universal: {
+            if (selector.namespace != null && selector.namespace !== "*") {
+                throw new Error("Namespaced universal selectors are not yet supported by css-select");
+            }
             return next;
+        }
     }
 }
 exports.compileGeneralSelector = compileGeneralSelector;
@@ -5589,7 +5998,11 @@ exports.compileGeneralSelector = compileGeneralSelector;
 
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
 }) : (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     o[k2] = m[k];
@@ -5646,7 +6059,7 @@ function getSelectorFunc(searchFunc) {
     return function select(query, elements, options) {
         var opts = convertOptionFormats(options);
         if (typeof query !== "function") {
-            query = compile_1.compileUnsafe(query, opts, elements);
+            query = (0, compile_1.compileUnsafe)(query, opts, elements);
         }
         var filteredElements = prepareContext(elements, opts.adapter, query.shouldTestNextSiblings);
         return searchFunc(query, filteredElements, opts);
@@ -5669,8 +6082,9 @@ exports.prepareContext = prepareContext;
 function appendNextSiblings(elem, adapter) {
     // Order matters because jQuery seems to check the children before the siblings
     var elems = Array.isArray(elem) ? elem.slice(0) : [elem];
-    for (var i = 0; i < elems.length; i++) {
-        var nextSiblings = subselects_1.getNextSiblings(elems[i], adapter);
+    var elemsLength = elems.length;
+    for (var i = 0; i < elemsLength; i++) {
+        var nextSiblings = (0, subselects_1.getNextSiblings)(elems[i], adapter);
         elems.push.apply(elems, nextSiblings);
     }
     return elems;
@@ -5717,7 +6131,7 @@ exports.selectOne = getSelectorFunc(function (query, elems, options) {
  */
 function is(elem, query, options) {
     var opts = convertOptionFormats(options);
-    return (typeof query === "function" ? query : compile_1.compile(query, opts))(elem);
+    return (typeof query === "function" ? query : (0, compile_1.compile)(query, opts))(elem);
 }
 exports.is = is;
 /**
@@ -5747,6 +6161,7 @@ exports.procedure = {
     attribute: 1,
     pseudo: 0,
     "pseudo-element": 0,
+    "column-combinator": -1,
     descendant: -1,
     child: -1,
     parent: -1,
@@ -5839,7 +6254,7 @@ exports.filters = {
     // Location specific methods
     "nth-child": function (next, rule, _a) {
         var adapter = _a.adapter, equals = _a.equals;
-        var func = nth_check_1.default(rule);
+        var func = (0, nth_check_1.default)(rule);
         if (func === boolbase_1.falseFunc)
             return boolbase_1.falseFunc;
         if (func === boolbase_1.trueFunc)
@@ -5859,7 +6274,7 @@ exports.filters = {
     },
     "nth-last-child": function (next, rule, _a) {
         var adapter = _a.adapter, equals = _a.equals;
-        var func = nth_check_1.default(rule);
+        var func = (0, nth_check_1.default)(rule);
         if (func === boolbase_1.falseFunc)
             return boolbase_1.falseFunc;
         if (func === boolbase_1.trueFunc)
@@ -5879,7 +6294,7 @@ exports.filters = {
     },
     "nth-of-type": function (next, rule, _a) {
         var adapter = _a.adapter, equals = _a.equals;
-        var func = nth_check_1.default(rule);
+        var func = (0, nth_check_1.default)(rule);
         if (func === boolbase_1.falseFunc)
             return boolbase_1.falseFunc;
         if (func === boolbase_1.trueFunc)
@@ -5901,7 +6316,7 @@ exports.filters = {
     },
     "nth-last-of-type": function (next, rule, _a) {
         var adapter = _a.adapter, equals = _a.equals;
-        var func = nth_check_1.default(rule);
+        var func = (0, nth_check_1.default)(rule);
         if (func === boolbase_1.falseFunc)
             return boolbase_1.falseFunc;
         if (func === boolbase_1.trueFunc)
@@ -5989,7 +6404,7 @@ exports.compilePseudoSelector = exports.aliases = exports.pseudos = exports.filt
  * Pseudos should be used to implement simple checks.
  */
 var boolbase_1 = __nccwpck_require__(4159);
-var css_what_1 = __nccwpck_require__(9218);
+var css_what_1 = __nccwpck_require__(284);
 var filters_1 = __nccwpck_require__(1686);
 Object.defineProperty(exports, "filters", ({ enumerable: true, get: function () { return filters_1.filters; } }));
 var pseudos_1 = __nccwpck_require__(8952);
@@ -6004,10 +6419,10 @@ function compilePseudoSelector(next, selector, options, context, compileToken) {
     }
     if (name in aliases_1.aliases) {
         if (data != null) {
-            throw new Error("Pseudo " + name + " doesn't have any arguments");
+            throw new Error("Pseudo ".concat(name, " doesn't have any arguments"));
         }
         // The alias has to be parsed here, to make sure options are respected.
-        var alias = css_what_1.parse(aliases_1.aliases[name], options);
+        var alias = (0, css_what_1.parse)(aliases_1.aliases[name]);
         return subselects_1.subselects.is(next, alias, options, context, compileToken);
     }
     if (name in filters_1.filters) {
@@ -6015,14 +6430,14 @@ function compilePseudoSelector(next, selector, options, context, compileToken) {
     }
     if (name in pseudos_1.pseudos) {
         var pseudo_1 = pseudos_1.pseudos[name];
-        pseudos_1.verifyPseudoArgs(pseudo_1, name, data);
+        (0, pseudos_1.verifyPseudoArgs)(pseudo_1, name, data);
         return pseudo_1 === boolbase_1.falseFunc
             ? boolbase_1.falseFunc
             : next === boolbase_1.trueFunc
                 ? function (elem) { return pseudo_1(elem, options, data); }
                 : function (elem) { return pseudo_1(elem, options, data) && next(elem); };
     }
-    throw new Error("unmatched pseudo-class :" + name);
+    throw new Error("unmatched pseudo-class :".concat(name));
 }
 exports.compilePseudoSelector = compilePseudoSelector;
 
@@ -6114,11 +6529,11 @@ exports.pseudos = {
 function verifyPseudoArgs(func, name, subselect) {
     if (subselect === null) {
         if (func.length > 2) {
-            throw new Error("pseudo-selector :" + name + " requires an argument");
+            throw new Error("pseudo-selector :".concat(name, " requires an argument"));
         }
     }
     else if (func.length === 2) {
-        throw new Error("pseudo-selector :" + name + " doesn't have any arguments");
+        throw new Error("pseudo-selector :".concat(name, " doesn't have any arguments"));
     }
 }
 exports.verifyPseudoArgs = verifyPseudoArgs;
@@ -6131,10 +6546,14 @@ exports.verifyPseudoArgs = verifyPseudoArgs;
 
 "use strict";
 
-var __spreadArray = (this && this.__spreadArray) || function (to, from) {
-    for (var i = 0, il = from.length, j = to.length; i < il; i++, j++)
-        to[j] = from[i];
-    return to;
+var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
+    if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
+        if (ar || !(i in from)) {
+            if (!ar) ar = Array.prototype.slice.call(from, 0, i);
+            ar[i] = from[i];
+        }
+    }
+    return to.concat(ar || Array.prototype.slice.call(from));
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.subselects = exports.getNextSiblings = exports.ensureIsTag = exports.PLACEHOLDER_ELEMENT = void 0;
@@ -6168,16 +6587,17 @@ var is = function (next, token, options, context, compileToken) {
     return function (elem) { return func(elem) && next(elem); };
 };
 /*
- * :not, :has, :is and :matches have to compile selectors
+ * :not, :has, :is, :matches and :where have to compile selectors
  * doing this in src/pseudos.ts would lead to circular dependencies,
  * so we add them here
  */
 exports.subselects = {
     is: is,
     /**
-     * `:matches` is an alias for `:is`.
+     * `:matches` and `:where` are aliases for `:is`.
      */
     matches: is,
+    where: is,
     not: function (next, token, options, context, compileToken) {
         var opts = {
             xmlMode: !!options.xmlMode,
@@ -6225,7 +6645,7 @@ exports.subselects = {
                 context[0] = elem;
                 var childs = adapter.getChildren(elem);
                 var nextElements = shouldTestNextSiblings
-                    ? __spreadArray(__spreadArray([], childs), getNextSiblings(elem, adapter)) : childs;
+                    ? __spreadArray(__spreadArray([], childs, true), getNextSiblings(elem, adapter), true) : childs;
                 return (next(elem) && adapter.existsOne(hasElement, nextElements));
             };
         }
@@ -6245,6 +6665,7 @@ exports.subselects = {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+var css_what_1 = __nccwpck_require__(284);
 var procedure_1 = __nccwpck_require__(7396);
 var attributes = {
     exists: 10,
@@ -6281,7 +6702,7 @@ function sortByProcedure(arr) {
 exports["default"] = sortByProcedure;
 function getProcedure(token) {
     var proc = procedure_1.procedure[token.type];
-    if (token.type === "attribute") {
+    if (token.type === css_what_1.SelectorType.Attribute) {
         proc = attributes[token.action];
         if (proc === attributes.equals && token.name === "id") {
             // Prefer ID selectors (eg. #ID)
@@ -6295,7 +6716,7 @@ function getProcedure(token) {
             proc >>= 1;
         }
     }
-    else if (token.type === "pseudo") {
+    else if (token.type === css_what_1.SelectorType.Pseudo) {
         if (!token.data) {
             proc = 3;
         }
@@ -6331,14 +6752,18 @@ function getProcedure(token) {
 
 /***/ }),
 
-/***/ 9218:
+/***/ 284:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
 }) : (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     o[k2] = m[k];
@@ -6346,56 +6771,36 @@ var __createBinding = (this && this.__createBinding) || (Object.create ? (functi
 var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.stringify = exports.parse = void 0;
-__exportStar(__nccwpck_require__(7751), exports);
-var parse_1 = __nccwpck_require__(7751);
-Object.defineProperty(exports, "parse", ({ enumerable: true, get: function () { return __importDefault(parse_1).default; } }));
-var stringify_1 = __nccwpck_require__(586);
-Object.defineProperty(exports, "stringify", ({ enumerable: true, get: function () { return __importDefault(stringify_1).default; } }));
+exports.stringify = exports.parse = exports.isTraversal = void 0;
+__exportStar(__nccwpck_require__(8752), exports);
+var parse_1 = __nccwpck_require__(7255);
+Object.defineProperty(exports, "isTraversal", ({ enumerable: true, get: function () { return parse_1.isTraversal; } }));
+Object.defineProperty(exports, "parse", ({ enumerable: true, get: function () { return parse_1.parse; } }));
+var stringify_1 = __nccwpck_require__(9265);
+Object.defineProperty(exports, "stringify", ({ enumerable: true, get: function () { return stringify_1.stringify; } }));
 
 
 /***/ }),
 
-/***/ 7751:
-/***/ (function(__unused_webpack_module, exports) {
+/***/ 7255:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
-var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
-    if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
-        if (ar || !(i in from)) {
-            if (!ar) ar = Array.prototype.slice.call(from, 0, i);
-            ar[i] = from[i];
-        }
-    }
-    return to.concat(ar || Array.prototype.slice.call(from));
-};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.isTraversal = void 0;
+exports.parse = exports.isTraversal = void 0;
+var types_1 = __nccwpck_require__(8752);
 var reName = /^[^\\#]?(?:\\(?:[\da-f]{1,6}\s?|.)|[\w\-\u00b0-\uFFFF])+/;
 var reEscape = /\\([\da-f]{1,6}\s?|(\s)|.)/gi;
 var actionTypes = new Map([
-    ["~", "element"],
-    ["^", "start"],
-    ["$", "end"],
-    ["*", "any"],
-    ["!", "not"],
-    ["|", "hyphen"],
+    [126 /* Tilde */, types_1.AttributeAction.Element],
+    [94 /* Circumflex */, types_1.AttributeAction.Start],
+    [36 /* Dollar */, types_1.AttributeAction.End],
+    [42 /* Asterisk */, types_1.AttributeAction.Any],
+    [33 /* ExclamationMark */, types_1.AttributeAction.Not],
+    [124 /* Pipe */, types_1.AttributeAction.Hyphen],
 ]);
-var Traversals = {
-    ">": "child",
-    "<": "parent",
-    "~": "sibling",
-    "+": "adjacent",
-};
-var attribSelectors = {
-    "#": ["id", "equals"],
-    ".": ["class", "element"],
-};
 // Pseudos, whose data property is parsed as well.
 var unpackPseudos = new Set([
     "has",
@@ -6406,63 +6811,6 @@ var unpackPseudos = new Set([
     "host",
     "host-context",
 ]);
-var traversalNames = new Set(__spreadArray([
-    "descendant"
-], Object.keys(Traversals).map(function (k) { return Traversals[k]; }), true));
-/**
- * Attributes that are case-insensitive in HTML.
- *
- * @private
- * @see https://html.spec.whatwg.org/multipage/semantics-other.html#case-sensitivity-of-selectors
- */
-var caseInsensitiveAttributes = new Set([
-    "accept",
-    "accept-charset",
-    "align",
-    "alink",
-    "axis",
-    "bgcolor",
-    "charset",
-    "checked",
-    "clear",
-    "codetype",
-    "color",
-    "compact",
-    "declare",
-    "defer",
-    "dir",
-    "direction",
-    "disabled",
-    "enctype",
-    "face",
-    "frame",
-    "hreflang",
-    "http-equiv",
-    "lang",
-    "language",
-    "link",
-    "media",
-    "method",
-    "multiple",
-    "nohref",
-    "noresize",
-    "noshade",
-    "nowrap",
-    "readonly",
-    "rel",
-    "rev",
-    "rules",
-    "scope",
-    "scrolling",
-    "selected",
-    "shape",
-    "target",
-    "text",
-    "type",
-    "valign",
-    "valuetype",
-    "vlink",
-]);
 /**
  * Checks whether a specific selector is a traversal.
  * This is useful eg. in swapping the order of elements that
@@ -6471,11 +6819,20 @@ var caseInsensitiveAttributes = new Set([
  * @param selector Selector to check.
  */
 function isTraversal(selector) {
-    return traversalNames.has(selector.type);
+    switch (selector.type) {
+        case types_1.SelectorType.Adjacent:
+        case types_1.SelectorType.Child:
+        case types_1.SelectorType.Descendant:
+        case types_1.SelectorType.Parent:
+        case types_1.SelectorType.Sibling:
+        case types_1.SelectorType.ColumnCombinator:
+            return true;
+        default:
+            return false;
+    }
 }
 exports.isTraversal = isTraversal;
 var stripQuotesFromPseudos = new Set(["contains", "icontains"]);
-var quotes = new Set(['"', "'"]);
 // Unescape function taken from https://github.com/jquery/sizzle/blob/master/src/sizzle.js#L152
 function funescape(_, escaped, escapedWhitespace) {
     var high = parseInt(escaped, 16) - 0x10000;
@@ -6491,8 +6848,15 @@ function funescape(_, escaped, escapedWhitespace) {
 function unescapeCSS(str) {
     return str.replace(reEscape, funescape);
 }
+function isQuote(c) {
+    return c === 39 /* SingleQuote */ || c === 34 /* DoubleQuote */;
+}
 function isWhitespace(c) {
-    return c === " " || c === "\n" || c === "\t" || c === "\f" || c === "\r";
+    return (c === 32 /* Space */ ||
+        c === 9 /* Tab */ ||
+        c === 10 /* NewLine */ ||
+        c === 12 /* FormFeed */ ||
+        c === 13 /* CarriageReturn */);
 }
 /**
  * Parses `selector`, optionally with the passed `options`.
@@ -6503,37 +6867,57 @@ function isWhitespace(c) {
  * The first dimension represents selectors separated by commas (eg. `sub1, sub2`),
  * the second contains the relevant tokens for that selector.
  */
-function parse(selector, options) {
+function parse(selector) {
     var subselects = [];
-    var endIndex = parseSelector(subselects, "" + selector, options, 0);
+    var endIndex = parseSelector(subselects, "".concat(selector), 0);
     if (endIndex < selector.length) {
-        throw new Error("Unmatched selector: " + selector.slice(endIndex));
+        throw new Error("Unmatched selector: ".concat(selector.slice(endIndex)));
     }
     return subselects;
 }
-exports["default"] = parse;
-function parseSelector(subselects, selector, options, selectorIndex) {
-    var _a, _b;
-    if (options === void 0) { options = {}; }
+exports.parse = parse;
+function parseSelector(subselects, selector, selectorIndex) {
     var tokens = [];
-    var sawWS = false;
     function getName(offset) {
         var match = selector.slice(selectorIndex + offset).match(reName);
         if (!match) {
-            throw new Error("Expected name, found " + selector.slice(selectorIndex));
+            throw new Error("Expected name, found ".concat(selector.slice(selectorIndex)));
         }
         var name = match[0];
         selectorIndex += offset + name.length;
         return unescapeCSS(name);
     }
     function stripWhitespace(offset) {
-        while (isWhitespace(selector.charAt(selectorIndex + offset)))
-            offset++;
         selectorIndex += offset;
+        while (selectorIndex < selector.length &&
+            isWhitespace(selector.charCodeAt(selectorIndex))) {
+            selectorIndex++;
+        }
+    }
+    function readValueWithParenthesis() {
+        selectorIndex += 1;
+        var start = selectorIndex;
+        var counter = 1;
+        for (; counter > 0 && selectorIndex < selector.length; selectorIndex++) {
+            if (selector.charCodeAt(selectorIndex) ===
+                40 /* LeftParenthesis */ &&
+                !isEscaped(selectorIndex)) {
+                counter++;
+            }
+            else if (selector.charCodeAt(selectorIndex) ===
+                41 /* RightParenthesis */ &&
+                !isEscaped(selectorIndex)) {
+                counter--;
+            }
+        }
+        if (counter) {
+            throw new Error("Parenthesis not matched");
+        }
+        return unescapeCSS(selector.slice(start, selectorIndex - 1));
     }
     function isEscaped(pos) {
         var slashCount = 0;
-        while (selector.charAt(--pos) === "\\")
+        while (selector.charCodeAt(--pos) === 92 /* BackSlash */)
             slashCount++;
         return (slashCount & 1) === 1;
     }
@@ -6542,103 +6926,144 @@ function parseSelector(subselects, selector, options, selectorIndex) {
             throw new Error("Did not expect successive traversals.");
         }
     }
+    function addTraversal(type) {
+        if (tokens.length > 0 &&
+            tokens[tokens.length - 1].type === types_1.SelectorType.Descendant) {
+            tokens[tokens.length - 1].type = type;
+            return;
+        }
+        ensureNotTraversal();
+        tokens.push({ type: type });
+    }
+    function addSpecialAttribute(name, action) {
+        tokens.push({
+            type: types_1.SelectorType.Attribute,
+            name: name,
+            action: action,
+            value: getName(1),
+            namespace: null,
+            ignoreCase: "quirks",
+        });
+    }
+    /**
+     * We have finished parsing the current part of the selector.
+     *
+     * Remove descendant tokens at the end if they exist,
+     * and return the last index, so that parsing can be
+     * picked up from here.
+     */
+    function finalizeSubselector() {
+        if (tokens.length &&
+            tokens[tokens.length - 1].type === types_1.SelectorType.Descendant) {
+            tokens.pop();
+        }
+        if (tokens.length === 0) {
+            throw new Error("Empty sub-selector");
+        }
+        subselects.push(tokens);
+    }
     stripWhitespace(0);
-    while (selector !== "") {
-        var firstChar = selector.charAt(selectorIndex);
-        if (isWhitespace(firstChar)) {
-            sawWS = true;
-            stripWhitespace(1);
-        }
-        else if (firstChar in Traversals) {
-            ensureNotTraversal();
-            tokens.push({ type: Traversals[firstChar] });
-            sawWS = false;
-            stripWhitespace(1);
-        }
-        else if (firstChar === ",") {
-            if (tokens.length === 0) {
-                throw new Error("Empty sub-selector");
+    if (selector.length === selectorIndex) {
+        return selectorIndex;
+    }
+    loop: while (selectorIndex < selector.length) {
+        var firstChar = selector.charCodeAt(selectorIndex);
+        switch (firstChar) {
+            // Whitespace
+            case 32 /* Space */:
+            case 9 /* Tab */:
+            case 10 /* NewLine */:
+            case 12 /* FormFeed */:
+            case 13 /* CarriageReturn */: {
+                if (tokens.length === 0 ||
+                    tokens[0].type !== types_1.SelectorType.Descendant) {
+                    ensureNotTraversal();
+                    tokens.push({ type: types_1.SelectorType.Descendant });
+                }
+                stripWhitespace(1);
+                break;
             }
-            subselects.push(tokens);
-            tokens = [];
-            sawWS = false;
-            stripWhitespace(1);
-        }
-        else if (selector.startsWith("/*", selectorIndex)) {
-            var endIndex = selector.indexOf("*/", selectorIndex + 2);
-            if (endIndex < 0) {
-                throw new Error("Comment was not terminated");
+            // Traversals
+            case 62 /* GreaterThan */: {
+                addTraversal(types_1.SelectorType.Child);
+                stripWhitespace(1);
+                break;
             }
-            selectorIndex = endIndex + 2;
-        }
-        else {
-            if (sawWS) {
-                ensureNotTraversal();
-                tokens.push({ type: "descendant" });
-                sawWS = false;
+            case 60 /* LessThan */: {
+                addTraversal(types_1.SelectorType.Parent);
+                stripWhitespace(1);
+                break;
             }
-            if (firstChar in attribSelectors) {
-                var _c = attribSelectors[firstChar], name_1 = _c[0], action = _c[1];
-                tokens.push({
-                    type: "attribute",
-                    name: name_1,
-                    action: action,
-                    value: getName(1),
-                    namespace: null,
-                    // TODO: Add quirksMode option, which makes `ignoreCase` `true` for HTML.
-                    ignoreCase: options.xmlMode ? null : false,
-                });
+            case 126 /* Tilde */: {
+                addTraversal(types_1.SelectorType.Sibling);
+                stripWhitespace(1);
+                break;
             }
-            else if (firstChar === "[") {
+            case 43 /* Plus */: {
+                addTraversal(types_1.SelectorType.Adjacent);
+                stripWhitespace(1);
+                break;
+            }
+            // Special attribute selectors: .class, #id
+            case 46 /* Period */: {
+                addSpecialAttribute("class", types_1.AttributeAction.Element);
+                break;
+            }
+            case 35 /* Hash */: {
+                addSpecialAttribute("id", types_1.AttributeAction.Equals);
+                break;
+            }
+            case 91 /* LeftSquareBracket */: {
                 stripWhitespace(1);
                 // Determine attribute name and namespace
+                var name_1 = void 0;
                 var namespace = null;
-                if (selector.charAt(selectorIndex) === "|") {
-                    namespace = "";
-                    selectorIndex += 1;
+                if (selector.charCodeAt(selectorIndex) === 124 /* Pipe */) {
+                    // Equivalent to no namespace
+                    name_1 = getName(1);
                 }
-                if (selector.startsWith("*|", selectorIndex)) {
+                else if (selector.startsWith("*|", selectorIndex)) {
                     namespace = "*";
-                    selectorIndex += 2;
+                    name_1 = getName(2);
                 }
-                var name_2 = getName(0);
-                if (namespace === null &&
-                    selector.charAt(selectorIndex) === "|" &&
-                    selector.charAt(selectorIndex + 1) !== "=") {
-                    namespace = name_2;
-                    name_2 = getName(1);
-                }
-                if ((_a = options.lowerCaseAttributeNames) !== null && _a !== void 0 ? _a : !options.xmlMode) {
-                    name_2 = name_2.toLowerCase();
+                else {
+                    name_1 = getName(0);
+                    if (selector.charCodeAt(selectorIndex) === 124 /* Pipe */ &&
+                        selector.charCodeAt(selectorIndex + 1) !==
+                            61 /* Equal */) {
+                        namespace = name_1;
+                        name_1 = getName(1);
+                    }
                 }
                 stripWhitespace(0);
                 // Determine comparison operation
-                var action = "exists";
-                var possibleAction = actionTypes.get(selector.charAt(selectorIndex));
+                var action = types_1.AttributeAction.Exists;
+                var possibleAction = actionTypes.get(selector.charCodeAt(selectorIndex));
                 if (possibleAction) {
                     action = possibleAction;
-                    if (selector.charAt(selectorIndex + 1) !== "=") {
+                    if (selector.charCodeAt(selectorIndex + 1) !==
+                        61 /* Equal */) {
                         throw new Error("Expected `=`");
                     }
                     stripWhitespace(2);
                 }
-                else if (selector.charAt(selectorIndex) === "=") {
-                    action = "equals";
+                else if (selector.charCodeAt(selectorIndex) === 61 /* Equal */) {
+                    action = types_1.AttributeAction.Equals;
                     stripWhitespace(1);
                 }
                 // Determine value
                 var value = "";
                 var ignoreCase = null;
                 if (action !== "exists") {
-                    if (quotes.has(selector.charAt(selectorIndex))) {
-                        var quote = selector.charAt(selectorIndex);
+                    if (isQuote(selector.charCodeAt(selectorIndex))) {
+                        var quote = selector.charCodeAt(selectorIndex);
                         var sectionEnd = selectorIndex + 1;
                         while (sectionEnd < selector.length &&
-                            (selector.charAt(sectionEnd) !== quote ||
+                            (selector.charCodeAt(sectionEnd) !== quote ||
                                 isEscaped(sectionEnd))) {
                             sectionEnd += 1;
                         }
-                        if (selector.charAt(sectionEnd) !== quote) {
+                        if (selector.charCodeAt(sectionEnd) !== quote) {
                             throw new Error("Attribute value didn't end");
                         }
                         value = unescapeCSS(selector.slice(selectorIndex + 1, sectionEnd));
@@ -6647,8 +7072,9 @@ function parseSelector(subselects, selector, options, selectorIndex) {
                     else {
                         var valueStart = selectorIndex;
                         while (selectorIndex < selector.length &&
-                            ((!isWhitespace(selector.charAt(selectorIndex)) &&
-                                selector.charAt(selectorIndex) !== "]") ||
+                            ((!isWhitespace(selector.charCodeAt(selectorIndex)) &&
+                                selector.charCodeAt(selectorIndex) !==
+                                    93 /* RightSquareBracket */) ||
                                 isEscaped(selectorIndex))) {
                             selectorIndex += 1;
                         }
@@ -6656,152 +7082,142 @@ function parseSelector(subselects, selector, options, selectorIndex) {
                     }
                     stripWhitespace(0);
                     // See if we have a force ignore flag
-                    var forceIgnore = selector.charAt(selectorIndex);
+                    var forceIgnore = selector.charCodeAt(selectorIndex) | 0x20;
                     // If the forceIgnore flag is set (either `i` or `s`), use that value
-                    if (forceIgnore === "s" || forceIgnore === "S") {
+                    if (forceIgnore === 115 /* LowerS */) {
                         ignoreCase = false;
                         stripWhitespace(1);
                     }
-                    else if (forceIgnore === "i" || forceIgnore === "I") {
+                    else if (forceIgnore === 105 /* LowerI */) {
                         ignoreCase = true;
                         stripWhitespace(1);
                     }
                 }
-                // If `xmlMode` is set, there are no rules; otherwise, use the `caseInsensitiveAttributes` list.
-                if (!options.xmlMode) {
-                    // TODO: Skip this for `exists`, as there is no value to compare to.
-                    ignoreCase !== null && ignoreCase !== void 0 ? ignoreCase : (ignoreCase = caseInsensitiveAttributes.has(name_2));
-                }
-                if (selector.charAt(selectorIndex) !== "]") {
+                if (selector.charCodeAt(selectorIndex) !==
+                    93 /* RightSquareBracket */) {
                     throw new Error("Attribute selector didn't terminate");
                 }
                 selectorIndex += 1;
                 var attributeSelector = {
-                    type: "attribute",
-                    name: name_2,
+                    type: types_1.SelectorType.Attribute,
+                    name: name_1,
                     action: action,
                     value: value,
                     namespace: namespace,
                     ignoreCase: ignoreCase,
                 };
                 tokens.push(attributeSelector);
+                break;
             }
-            else if (firstChar === ":") {
-                if (selector.charAt(selectorIndex + 1) === ":") {
+            case 58 /* Colon */: {
+                if (selector.charCodeAt(selectorIndex + 1) === 58 /* Colon */) {
                     tokens.push({
-                        type: "pseudo-element",
+                        type: types_1.SelectorType.PseudoElement,
                         name: getName(2).toLowerCase(),
+                        data: selector.charCodeAt(selectorIndex) ===
+                            40 /* LeftParenthesis */
+                            ? readValueWithParenthesis()
+                            : null,
                     });
                     continue;
                 }
-                var name_3 = getName(1).toLowerCase();
+                var name_2 = getName(1).toLowerCase();
                 var data = null;
-                if (selector.charAt(selectorIndex) === "(") {
-                    if (unpackPseudos.has(name_3)) {
-                        if (quotes.has(selector.charAt(selectorIndex + 1))) {
-                            throw new Error("Pseudo-selector " + name_3 + " cannot be quoted");
+                if (selector.charCodeAt(selectorIndex) ===
+                    40 /* LeftParenthesis */) {
+                    if (unpackPseudos.has(name_2)) {
+                        if (isQuote(selector.charCodeAt(selectorIndex + 1))) {
+                            throw new Error("Pseudo-selector ".concat(name_2, " cannot be quoted"));
                         }
                         data = [];
-                        selectorIndex = parseSelector(data, selector, options, selectorIndex + 1);
-                        if (selector.charAt(selectorIndex) !== ")") {
-                            throw new Error("Missing closing parenthesis in :" + name_3 + " (" + selector + ")");
+                        selectorIndex = parseSelector(data, selector, selectorIndex + 1);
+                        if (selector.charCodeAt(selectorIndex) !==
+                            41 /* RightParenthesis */) {
+                            throw new Error("Missing closing parenthesis in :".concat(name_2, " (").concat(selector, ")"));
                         }
                         selectorIndex += 1;
                     }
                     else {
-                        selectorIndex += 1;
-                        var start = selectorIndex;
-                        var counter = 1;
-                        for (; counter > 0 && selectorIndex < selector.length; selectorIndex++) {
-                            if (selector.charAt(selectorIndex) === "(" &&
-                                !isEscaped(selectorIndex)) {
-                                counter++;
-                            }
-                            else if (selector.charAt(selectorIndex) === ")" &&
-                                !isEscaped(selectorIndex)) {
-                                counter--;
-                            }
-                        }
-                        if (counter) {
-                            throw new Error("Parenthesis not matched");
-                        }
-                        data = selector.slice(start, selectorIndex - 1);
-                        if (stripQuotesFromPseudos.has(name_3)) {
-                            var quot = data.charAt(0);
-                            if (quot === data.slice(-1) && quotes.has(quot)) {
+                        data = readValueWithParenthesis();
+                        if (stripQuotesFromPseudos.has(name_2)) {
+                            var quot = data.charCodeAt(0);
+                            if (quot === data.charCodeAt(data.length - 1) &&
+                                isQuote(quot)) {
                                 data = data.slice(1, -1);
                             }
-                            data = unescapeCSS(data);
                         }
+                        data = unescapeCSS(data);
                     }
                 }
-                tokens.push({ type: "pseudo", name: name_3, data: data });
+                tokens.push({ type: types_1.SelectorType.Pseudo, name: name_2, data: data });
+                break;
             }
-            else {
+            case 44 /* Comma */: {
+                finalizeSubselector();
+                tokens = [];
+                stripWhitespace(1);
+                break;
+            }
+            default: {
+                if (selector.startsWith("/*", selectorIndex)) {
+                    var endIndex = selector.indexOf("*/", selectorIndex + 2);
+                    if (endIndex < 0) {
+                        throw new Error("Comment was not terminated");
+                    }
+                    selectorIndex = endIndex + 2;
+                    // Remove leading whitespace
+                    if (tokens.length === 0) {
+                        stripWhitespace(0);
+                    }
+                    break;
+                }
                 var namespace = null;
-                var name_4 = void 0;
-                if (firstChar === "*") {
+                var name_3 = void 0;
+                if (firstChar === 42 /* Asterisk */) {
                     selectorIndex += 1;
-                    name_4 = "*";
+                    name_3 = "*";
+                }
+                else if (firstChar === 124 /* Pipe */) {
+                    name_3 = "";
+                    if (selector.charCodeAt(selectorIndex + 1) === 124 /* Pipe */) {
+                        addTraversal(types_1.SelectorType.ColumnCombinator);
+                        stripWhitespace(2);
+                        break;
+                    }
                 }
                 else if (reName.test(selector.slice(selectorIndex))) {
-                    if (selector.charAt(selectorIndex) === "|") {
-                        namespace = "";
-                        selectorIndex += 1;
-                    }
-                    name_4 = getName(0);
+                    name_3 = getName(0);
                 }
                 else {
-                    /*
-                     * We have finished parsing the selector.
-                     * Remove descendant tokens at the end if they exist,
-                     * and return the last index, so that parsing can be
-                     * picked up from here.
-                     */
-                    if (tokens.length &&
-                        tokens[tokens.length - 1].type === "descendant") {
-                        tokens.pop();
-                    }
-                    addToken(subselects, tokens);
-                    return selectorIndex;
+                    break loop;
                 }
-                if (selector.charAt(selectorIndex) === "|") {
-                    namespace = name_4;
-                    if (selector.charAt(selectorIndex + 1) === "*") {
-                        name_4 = "*";
+                if (selector.charCodeAt(selectorIndex) === 124 /* Pipe */ &&
+                    selector.charCodeAt(selectorIndex + 1) !== 124 /* Pipe */) {
+                    namespace = name_3;
+                    if (selector.charCodeAt(selectorIndex + 1) ===
+                        42 /* Asterisk */) {
+                        name_3 = "*";
                         selectorIndex += 2;
                     }
                     else {
-                        name_4 = getName(1);
+                        name_3 = getName(1);
                     }
                 }
-                if (name_4 === "*") {
-                    tokens.push({ type: "universal", namespace: namespace });
-                }
-                else {
-                    if ((_b = options.lowerCaseTags) !== null && _b !== void 0 ? _b : !options.xmlMode) {
-                        name_4 = name_4.toLowerCase();
-                    }
-                    tokens.push({ type: "tag", name: name_4, namespace: namespace });
-                }
+                tokens.push(name_3 === "*"
+                    ? { type: types_1.SelectorType.Universal, namespace: namespace }
+                    : { type: types_1.SelectorType.Tag, name: name_3, namespace: namespace });
             }
         }
     }
-    addToken(subselects, tokens);
+    finalizeSubselector();
     return selectorIndex;
-}
-function addToken(subselects, tokens) {
-    if (subselects.length > 0 && tokens.length === 0) {
-        throw new Error("Empty sub-selector");
-    }
-    subselects.push(tokens);
 }
 
 
 /***/ }),
 
-/***/ 586:
-/***/ (function(__unused_webpack_module, exports) {
+/***/ 9265:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
@@ -6815,100 +7231,183 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
     return to.concat(ar || Array.prototype.slice.call(from));
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-var actionTypes = {
-    equals: "",
-    element: "~",
-    start: "^",
-    end: "$",
-    any: "*",
-    not: "!",
-    hyphen: "|",
-};
-var charsToEscape = new Set(__spreadArray(__spreadArray([], Object.keys(actionTypes)
-    .map(function (typeKey) { return actionTypes[typeKey]; })
-    .filter(Boolean), true), [
+exports.stringify = void 0;
+var types_1 = __nccwpck_require__(8752);
+var attribValChars = ["\\", '"'];
+var pseudoValChars = __spreadArray(__spreadArray([], attribValChars, true), ["(", ")"], false);
+var charsToEscapeInAttributeValue = new Set(attribValChars.map(function (c) { return c.charCodeAt(0); }));
+var charsToEscapeInPseudoValue = new Set(pseudoValChars.map(function (c) { return c.charCodeAt(0); }));
+var charsToEscapeInName = new Set(__spreadArray(__spreadArray([], pseudoValChars, true), [
+    "~",
+    "^",
+    "$",
+    "*",
+    "+",
+    "!",
+    "|",
     ":",
     "[",
     "]",
     " ",
-    "\\",
-    "(",
-    ")",
-    "'",
-], false));
+    ".",
+], false).map(function (c) { return c.charCodeAt(0); }));
 /**
  * Turns `selector` back into a string.
  *
  * @param selector Selector to stringify.
  */
 function stringify(selector) {
-    return selector.map(stringifySubselector).join(", ");
+    return selector
+        .map(function (token) { return token.map(stringifyToken).join(""); })
+        .join(", ");
 }
-exports["default"] = stringify;
-function stringifySubselector(token) {
-    return token.map(stringifyToken).join("");
-}
-function stringifyToken(token) {
+exports.stringify = stringify;
+function stringifyToken(token, index, arr) {
     switch (token.type) {
         // Simple types
-        case "child":
-            return " > ";
-        case "parent":
-            return " < ";
-        case "sibling":
-            return " ~ ";
-        case "adjacent":
-            return " + ";
-        case "descendant":
+        case types_1.SelectorType.Child:
+            return index === 0 ? "> " : " > ";
+        case types_1.SelectorType.Parent:
+            return index === 0 ? "< " : " < ";
+        case types_1.SelectorType.Sibling:
+            return index === 0 ? "~ " : " ~ ";
+        case types_1.SelectorType.Adjacent:
+            return index === 0 ? "+ " : " + ";
+        case types_1.SelectorType.Descendant:
             return " ";
-        case "universal":
-            return getNamespace(token.namespace) + "*";
-        case "tag":
+        case types_1.SelectorType.ColumnCombinator:
+            return index === 0 ? "|| " : " || ";
+        case types_1.SelectorType.Universal:
+            // Return an empty string if the selector isn't needed.
+            return token.namespace === "*" &&
+                index + 1 < arr.length &&
+                "name" in arr[index + 1]
+                ? ""
+                : "".concat(getNamespace(token.namespace), "*");
+        case types_1.SelectorType.Tag:
             return getNamespacedName(token);
-        case "pseudo-element":
-            return "::" + escapeName(token.name);
-        case "pseudo":
-            if (token.data === null)
-                return ":" + escapeName(token.name);
-            if (typeof token.data === "string") {
-                return ":" + escapeName(token.name) + "(" + escapeName(token.data) + ")";
-            }
-            return ":" + escapeName(token.name) + "(" + stringify(token.data) + ")";
-        case "attribute": {
+        case types_1.SelectorType.PseudoElement:
+            return "::".concat(escapeName(token.name, charsToEscapeInName)).concat(token.data === null
+                ? ""
+                : "(".concat(escapeName(token.data, charsToEscapeInPseudoValue), ")"));
+        case types_1.SelectorType.Pseudo:
+            return ":".concat(escapeName(token.name, charsToEscapeInName)).concat(token.data === null
+                ? ""
+                : "(".concat(typeof token.data === "string"
+                    ? escapeName(token.data, charsToEscapeInPseudoValue)
+                    : stringify(token.data), ")"));
+        case types_1.SelectorType.Attribute: {
             if (token.name === "id" &&
-                token.action === "equals" &&
-                !token.ignoreCase &&
+                token.action === types_1.AttributeAction.Equals &&
+                token.ignoreCase === "quirks" &&
                 !token.namespace) {
-                return "#" + escapeName(token.value);
+                return "#".concat(escapeName(token.value, charsToEscapeInName));
             }
             if (token.name === "class" &&
-                token.action === "element" &&
-                !token.ignoreCase &&
+                token.action === types_1.AttributeAction.Element &&
+                token.ignoreCase === "quirks" &&
                 !token.namespace) {
-                return "." + escapeName(token.value);
+                return ".".concat(escapeName(token.value, charsToEscapeInName));
             }
             var name_1 = getNamespacedName(token);
-            if (token.action === "exists") {
-                return "[" + name_1 + "]";
+            if (token.action === types_1.AttributeAction.Exists) {
+                return "[".concat(name_1, "]");
             }
-            return "[" + name_1 + actionTypes[token.action] + "='" + escapeName(token.value) + "'" + (token.ignoreCase ? "i" : token.ignoreCase === false ? "s" : "") + "]";
+            return "[".concat(name_1).concat(getActionValue(token.action), "=\"").concat(escapeName(token.value, charsToEscapeInAttributeValue), "\"").concat(token.ignoreCase === null ? "" : token.ignoreCase ? " i" : " s", "]");
         }
     }
 }
+function getActionValue(action) {
+    switch (action) {
+        case types_1.AttributeAction.Equals:
+            return "";
+        case types_1.AttributeAction.Element:
+            return "~";
+        case types_1.AttributeAction.Start:
+            return "^";
+        case types_1.AttributeAction.End:
+            return "$";
+        case types_1.AttributeAction.Any:
+            return "*";
+        case types_1.AttributeAction.Not:
+            return "!";
+        case types_1.AttributeAction.Hyphen:
+            return "|";
+        case types_1.AttributeAction.Exists:
+            throw new Error("Shouldn't be here");
+    }
+}
 function getNamespacedName(token) {
-    return "" + getNamespace(token.namespace) + escapeName(token.name);
+    return "".concat(getNamespace(token.namespace)).concat(escapeName(token.name, charsToEscapeInName));
 }
 function getNamespace(namespace) {
     return namespace !== null
-        ? (namespace === "*" ? "*" : escapeName(namespace)) + "|"
+        ? "".concat(namespace === "*"
+            ? "*"
+            : escapeName(namespace, charsToEscapeInName), "|")
         : "";
 }
-function escapeName(str) {
-    return str
-        .split("")
-        .map(function (c) { return (charsToEscape.has(c) ? "\\" + c : c); })
-        .join("");
+function escapeName(str, charsToEscape) {
+    var lastIdx = 0;
+    var ret = "";
+    for (var i = 0; i < str.length; i++) {
+        if (charsToEscape.has(str.charCodeAt(i))) {
+            ret += "".concat(str.slice(lastIdx, i), "\\").concat(str.charAt(i));
+            lastIdx = i + 1;
+        }
+    }
+    return ret.length > 0 ? ret + str.slice(lastIdx) : str;
 }
+
+
+/***/ }),
+
+/***/ 8752:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.AttributeAction = exports.IgnoreCaseMode = exports.SelectorType = void 0;
+var SelectorType;
+(function (SelectorType) {
+    SelectorType["Attribute"] = "attribute";
+    SelectorType["Pseudo"] = "pseudo";
+    SelectorType["PseudoElement"] = "pseudo-element";
+    SelectorType["Tag"] = "tag";
+    SelectorType["Universal"] = "universal";
+    // Traversals
+    SelectorType["Adjacent"] = "adjacent";
+    SelectorType["Child"] = "child";
+    SelectorType["Descendant"] = "descendant";
+    SelectorType["Parent"] = "parent";
+    SelectorType["Sibling"] = "sibling";
+    SelectorType["ColumnCombinator"] = "column-combinator";
+})(SelectorType = exports.SelectorType || (exports.SelectorType = {}));
+/**
+ * Modes for ignore case.
+ *
+ * This could be updated to an enum, and the object is
+ * the current stand-in that will allow code to be updated
+ * without big changes.
+ */
+exports.IgnoreCaseMode = {
+    Unknown: null,
+    QuirksMode: "quirks",
+    IgnoreCase: true,
+    CaseSensitive: false,
+};
+var AttributeAction;
+(function (AttributeAction) {
+    AttributeAction["Any"] = "any";
+    AttributeAction["Element"] = "element";
+    AttributeAction["End"] = "end";
+    AttributeAction["Equals"] = "equals";
+    AttributeAction["Exists"] = "exists";
+    AttributeAction["Hyphen"] = "hyphen";
+    AttributeAction["Not"] = "not";
+    AttributeAction["Start"] = "start";
+})(AttributeAction = exports.AttributeAction || (exports.AttributeAction = {}));
 
 
 /***/ }),
@@ -7313,7 +7812,11 @@ exports.Doctype = ElementType.Doctype;
 
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
 }) : (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     o[k2] = m[k];
@@ -19549,7 +20052,7 @@ module.exports = Mixin;
 /***/ 4351:
 /***/ ((module) => {
 
-/*! *****************************************************************************
+/******************************************************************************
 Copyright (c) Microsoft Corporation.
 
 Permission to use, copy, modify, and/or distribute this software for any
@@ -19587,6 +20090,7 @@ var __importStar;
 var __importDefault;
 var __classPrivateFieldGet;
 var __classPrivateFieldSet;
+var __classPrivateFieldIn;
 var __createBinding;
 (function (factory) {
     var root = typeof global === "object" ? global : typeof self === "object" ? self : typeof this === "object" ? this : {};
@@ -19703,7 +20207,11 @@ var __createBinding;
 
     __createBinding = Object.create ? (function(o, m, k, k2) {
         if (k2 === undefined) k2 = k;
-        Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+        var desc = Object.getOwnPropertyDescriptor(m, k);
+        if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+            desc = { enumerable: true, get: function() { return m[k]; } };
+        }
+        Object.defineProperty(o, k2, desc);
     }) : (function(o, m, k, k2) {
         if (k2 === undefined) k2 = k;
         o[k2] = m[k];
@@ -19830,6 +20338,11 @@ var __createBinding;
         return (kind === "a" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value)), value;
     };
 
+    __classPrivateFieldIn = function (state, receiver) {
+        if (receiver === null || (typeof receiver !== "object" && typeof receiver !== "function")) throw new TypeError("Cannot use 'in' operator on non-object");
+        return typeof state === "function" ? receiver === state : state.has(receiver);
+    };
+
     exporter("__extends", __extends);
     exporter("__assign", __assign);
     exporter("__rest", __rest);
@@ -19854,6 +20367,7 @@ var __createBinding;
     exporter("__importDefault", __importDefault);
     exporter("__classPrivateFieldGet", __classPrivateFieldGet);
     exporter("__classPrivateFieldSet", __classPrivateFieldSet);
+    exporter("__classPrivateFieldIn", __classPrivateFieldIn);
 });
 
 
