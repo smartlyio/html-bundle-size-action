@@ -1,6 +1,6 @@
-name: 'Your name here'
-description: 'Provide a description here'
-author: 'Your name or organization here'
+name: "HTML Bundle Size"
+description: "Calculate the total size of a HTML bundle's assets"
+author: "Smartly.io Solutions Oy"
 inputs:
   path:
     required: true
@@ -13,5 +13,5 @@ outputs:
   size:
     description: "Size in bytes of the full build bundle"
 runs:
-  using: 'node12'
+  using: 'node16'
   main: 'dist/index.js'
