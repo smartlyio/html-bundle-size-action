@@ -1,3 +1,4 @@
+import { expect, describe, it } from '@jest/globals';
 import * as fs from 'fs'
 import nock from 'nock'
 import bundleSize, {
