@@ -27,7 +27,7 @@
   "license": "MIT",
   "dependencies": {
     "@actions/core": "^1.8.0",
-    "cheerio": "1.0.0-rc.10"
+    "cheerio": "1.0.0-rc.11"
   },
   "devDependencies": {
     "@types/node": "^16.11.12",
