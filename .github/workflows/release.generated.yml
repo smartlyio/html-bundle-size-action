@@ -18,10 +18,10 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v3
-    - name: Set Node.js 12.x
-      uses: actions/setup-node@v2
+    - name: Set Node.js 16.x
+      uses: actions/setup-node@v3
       with:
-        node-version: 12.x
+        node-version: 16.x
     - name: "Install"
       run: |
         npm ci
@@ -44,7 +44,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Set Node.js 16.x
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
           node-version: 16.x
       - name: "Build action for test"
@@ -74,10 +74,10 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: true
-      - name: Set Node.js 12.x
-        uses: actions/setup-node@v2
+      - name: Set Node.js 16.x
+        uses: actions/setup-node@v3
         with:
-          node-version: 12.x
+          node-version: 16.x
       - name: Configure git
         run: |
           git config user.name "github-actions[bot]"
