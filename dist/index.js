@@ -684,8 +684,8 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.OidcClient = void 0;
-const http_client_1 = __nccwpck_require__(1404);
-const auth_1 = __nccwpck_require__(6758);
+const http_client_1 = __nccwpck_require__(6255);
+const auth_1 = __nccwpck_require__(5526);
 const core_1 = __nccwpck_require__(2186);
 class OidcClient {
     static createHttpClient(allowRetry = true, maxRetry = 10) {
@@ -1154,7 +1154,7 @@ exports.toCommandProperties = toCommandProperties;
 
 /***/ }),
 
-/***/ 6758:
+/***/ 5526:
 /***/ (function(__unused_webpack_module, exports) {
 
 "use strict";
@@ -1242,7 +1242,7 @@ exports.PersonalAccessTokenCredentialHandler = PersonalAccessTokenCredentialHand
 
 /***/ }),
 
-/***/ 1404:
+/***/ 6255:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -1280,7 +1280,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.HttpClient = exports.isHttps = exports.HttpClientResponse = exports.HttpClientError = exports.getProxyUrl = exports.MediaTypes = exports.Headers = exports.HttpCodes = void 0;
 const http = __importStar(__nccwpck_require__(3685));
 const https = __importStar(__nccwpck_require__(5687));
-const pm = __importStar(__nccwpck_require__(2843));
+const pm = __importStar(__nccwpck_require__(9835));
 const tunnel = __importStar(__nccwpck_require__(4294));
 var HttpCodes;
 (function (HttpCodes) {
@@ -1854,7 +1854,7 @@ const lowercaseKeys = (obj) => Object.keys(obj).reduce((c, k) => ((c[k.toLowerCa
 
 /***/ }),
 
-/***/ 2843:
+/***/ 9835:
 /***/ ((__unused_webpack_module, exports) => {
 
 "use strict";
@@ -11561,13 +11561,16 @@ Object.defineProperty(exports, "RssHandler", ({ enumerable: true, get: function 
 /***/ }),
 
 /***/ 9241:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.compile = void 0;
-var boolbase_1 = __nccwpck_require__(4159);
+exports.generate = exports.compile = void 0;
+var boolbase_1 = __importDefault(__nccwpck_require__(4159));
 /**
  * Returns a function that checks if an elements index matches the given rule
  * highly optimized to return the fastest solution.
@@ -11575,6 +11578,8 @@ var boolbase_1 = __nccwpck_require__(4159);
  * @param parsed A tuple [a, b], as returned by `parse`.
  * @returns A highly optimized function that returns whether an index matches the nth-check.
  * @example
+ *
+ * ```js
  * const check = nthCheck.compile([2, 3]);
  *
  * check(0); // `false`
@@ -11584,6 +11589,7 @@ var boolbase_1 = __nccwpck_require__(4159);
  * check(4); // `true`
  * check(5); // `false`
  * check(6); // `true`
+ * ```
  */
 function compile(parsed) {
     var a = parsed[0];
@@ -11597,7 +11603,7 @@ function compile(parsed) {
      * `b < 0` here as we subtracted 1 from `b` above.
      */
     if (b < 0 && a <= 0)
-        return boolbase_1.falseFunc;
+        return boolbase_1.default.falseFunc;
     // When `a` is in the range -1..1, it matches any element (so only `b` is checked).
     if (a === -1)
         return function (index) { return index <= b; };
@@ -11605,7 +11611,7 @@ function compile(parsed) {
         return function (index) { return index === b; };
     // When `b <= 0` and `a === 1`, they match any element.
     if (a === 1)
-        return b < 0 ? boolbase_1.trueFunc : function (index) { return index >= b; };
+        return b < 0 ? boolbase_1.default.trueFunc : function (index) { return index >= b; };
     /*
      * Otherwise, modulo can be used to check if there is a match.
      *
@@ -11619,7 +11625,66 @@ function compile(parsed) {
         : function (index) { return index <= b && index % absA === bMod; };
 }
 exports.compile = compile;
-
+/**
+ * Returns a function that produces a monotonously increasing sequence of indices.
+ *
+ * If the sequence has an end, the returned function will return `null` after
+ * the last index in the sequence.
+ *
+ * @param parsed A tuple [a, b], as returned by `parse`.
+ * @returns A function that produces a sequence of indices.
+ * @example <caption>Always increasing (2n+3)</caption>
+ *
+ * ```js
+ * const gen = nthCheck.generate([2, 3])
+ *
+ * gen() // `1`
+ * gen() // `3`
+ * gen() // `5`
+ * gen() // `8`
+ * gen() // `11`
+ * ```
+ *
+ * @example <caption>With end value (-2n+10)</caption>
+ *
+ * ```js
+ *
+ * const gen = nthCheck.generate([-2, 5]);
+ *
+ * gen() // 0
+ * gen() // 2
+ * gen() // 4
+ * gen() // null
+ * ```
+ */
+function generate(parsed) {
+    var a = parsed[0];
+    // Subtract 1 from `b`, to convert from one- to zero-indexed.
+    var b = parsed[1] - 1;
+    var n = 0;
+    // Make sure to always return an increasing sequence
+    if (a < 0) {
+        var aPos_1 = -a;
+        // Get `b mod a`
+        var minValue_1 = ((b % aPos_1) + aPos_1) % aPos_1;
+        return function () {
+            var val = minValue_1 + aPos_1 * n++;
+            return val > b ? null : val;
+        };
+    }
+    if (a === 0)
+        return b < 0
+            ? // There are no result — always return `null`
+                function () { return null; }
+            : // Return `b` exactly once
+                function () { return (n++ === 0 ? b : null); };
+    if (b < 0) {
+        b += a * Math.ceil(-b / a);
+    }
+    return function () { return a * n++ + b; };
+}
+exports.generate = generate;
+//# sourceMappingURL=compile.js.map
 
 /***/ }),
 
@@ -11629,14 +11694,15 @@ exports.compile = compile;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.compile = exports.parse = void 0;
-var parse_1 = __nccwpck_require__(7869);
-Object.defineProperty(exports, "parse", ({ enumerable: true, get: function () { return parse_1.parse; } }));
-var compile_1 = __nccwpck_require__(9241);
-Object.defineProperty(exports, "compile", ({ enumerable: true, get: function () { return compile_1.compile; } }));
+exports.sequence = exports.generate = exports.compile = exports.parse = void 0;
+var parse_js_1 = __nccwpck_require__(7869);
+Object.defineProperty(exports, "parse", ({ enumerable: true, get: function () { return parse_js_1.parse; } }));
+var compile_js_1 = __nccwpck_require__(9241);
+Object.defineProperty(exports, "compile", ({ enumerable: true, get: function () { return compile_js_1.compile; } }));
+Object.defineProperty(exports, "generate", ({ enumerable: true, get: function () { return compile_js_1.generate; } }));
 /**
  * Parses and compiles a formula to a highly optimized function.
- * Combination of `parse` and `compile`.
+ * Combination of {@link parse} and {@link compile}.
  *
  * If the formula doesn't match any elements,
  * it returns [`boolbase`](https://github.com/fb55/boolbase)'s `falseFunc`.
@@ -11658,10 +11724,44 @@ Object.defineProperty(exports, "compile", ({ enumerable: true, get: function () 
  * check(6); // `true`
  */
 function nthCheck(formula) {
-    return (0, compile_1.compile)((0, parse_1.parse)(formula));
+    return (0, compile_js_1.compile)((0, parse_js_1.parse)(formula));
 }
 exports["default"] = nthCheck;
-
+/**
+ * Parses and compiles a formula to a generator that produces a sequence of indices.
+ * Combination of {@link parse} and {@link generate}.
+ *
+ * @param formula The formula to compile.
+ * @returns A function that produces a sequence of indices.
+ * @example <caption>Always increasing</caption>
+ *
+ * ```js
+ * const gen = nthCheck.sequence('2n+3')
+ *
+ * gen() // `1`
+ * gen() // `3`
+ * gen() // `5`
+ * gen() // `8`
+ * gen() // `11`
+ * ```
+ *
+ * @example <caption>With end value</caption>
+ *
+ * ```js
+ *
+ * const gen = nthCheck.sequence('-2n+5');
+ *
+ * gen() // 0
+ * gen() // 2
+ * gen() // 4
+ * gen() // null
+ * ```
+ */
+function sequence(formula) {
+    return (0, compile_js_1.generate)((0, parse_js_1.parse)(formula));
+}
+exports.sequence = sequence;
+//# sourceMappingURL=index.js.map
 
 /***/ }),
 
@@ -11712,7 +11812,7 @@ function parse(formula) {
     }
     // Throw if there is anything else
     if (number === null || idx < formula.length) {
-        throw new Error("n-th rule couldn't be parsed ('" + formula + "')");
+        throw new Error("n-th rule couldn't be parsed ('".concat(formula, "')"));
     }
     return [a, sign * number];
     function readSign() {
@@ -11745,7 +11845,7 @@ function parse(formula) {
     }
 }
 exports.parse = parse;
-
+//# sourceMappingURL=parse.js.map
 
 /***/ }),
 
