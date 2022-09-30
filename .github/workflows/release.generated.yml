@@ -79,6 +79,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
       - name: Release flow
-        uses: smartlyio/github-actions/release-action-node@6717450709cf71e676c1d9d1fd52fa831b7306fd
+        uses: smartlyio/github-actions/release-action-node@e889cb4efd33fe57e859b5913c6eeb5acd278e20
         with:
           token: "${{ secrets.GITHUB_TOKEN }}"
