@@ -50,9 +50,5 @@ jobs:
         run: |
           package_version="$(jq -r .version < package.json)"
           release_branch="v${package_version//.*/}"
-          upstream="origin/${release_branch}"
-
           git checkout -b "${release_branch}"
-          git branch --set-upstream-to="${upstream}"
-
-          git push origin "${release_branch}"
+          git push -u origin "${release_branch}"
