@@ -1,6 +1,6 @@
 {
   "name": "html-bundle-size-action",
-  "version": "2.2.2",
+  "version": "2.2.3",
   "private": true,
   "description": "Compute total size of assets in HTML file",
   "main": "lib/main.js",
