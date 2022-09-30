@@ -64,3 +64,22 @@ jobs:
         env:
           ACTUAL_BUNDLE_SIZE: ${{ steps.bundle.outputs.size }}
           EXPECTED_BUNDLE_SIZE: '89501'
+
+  release:
+    runs-on: ubuntu-20.04
+    name: "Build and release action"
+    needs: [build, test]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Release flow
+        uses: smartlyio/github-actions/release-action-node@d84eca1efdaf6631ed737a0d7bcc05a3e3c955c2
+        with:
+          dry_run: true
+          token: "${{ secrets.GITHUB_TOKEN }}"
