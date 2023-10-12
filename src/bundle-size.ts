@@ -2,7 +2,8 @@ import * as fs from 'fs'
 import * as http from 'http'
 import * as https from 'https'
 
-import cheerio, {CheerioAPI} from 'cheerio'
+import {load} from 'cheerio'
+import type {CheerioAPI} from 'cheerio'
 import {URL} from 'url'
 
 export type Asset = {
@@ -34,7 +35,7 @@ const styleAssets = ($: CheerioAPI): Asset[] =>
     }))
 
 export const linkedAssets = (html: string): Asset[] => {
-  const $ = cheerio.load(html)
+  const $ = load(html)
   return [...scriptAssets($), ...styleAssets($)]
 }
 
