@@ -13,22 +13,22 @@ nock('http://assets.example')
   .head('/prototype.js')
   .reply(200, undefined, {
     // @ts-ignore
-    'Content-Length': 123456
+    'Content-Length': '123456'
   })
   .head('/scriptaculous.js')
   .reply(200, undefined, {
     // @ts-ignore
-    'Content-Length': 654321
+    'Content-Length': '654321'
   })
   .head('/blueprint.css')
   .reply(200, undefined, {
     // @ts-ignore
-    'Content-Length': 1000000
+    'Content-Length': '1000000'
   })
   .head('/error.js')
   .reply(404, undefined, {
     // @ts-ignore
-    'Content-Length': 1
+    'Content-Length': '1'
   })
 
 describe('bundleSize', () => {
