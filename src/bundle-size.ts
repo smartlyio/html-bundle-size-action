@@ -2,7 +2,7 @@ import * as fs from 'fs'
 import * as http from 'http'
 import * as https from 'https'
 
-import cheerio, {CheerioAPI} from 'cheerio'
+import {load} from 'cheerio'
 import {URL} from 'url'
 
 export type Asset = {
@@ -15,7 +15,7 @@ export type AssetWithSize = Asset & {
   readonly size: number
 }
 
-const scriptAssets = ($: CheerioAPI): Asset[] =>
+const scriptAssets = ($: ReturnType<typeof load>): Asset[] =>
   $('script[src]')
     .toArray()
     .map(el => ({
@@ -24,7 +24,7 @@ const scriptAssets = ($: CheerioAPI): Asset[] =>
       async: el.attribs.async !== undefined
     }))
 
-const styleAssets = ($: CheerioAPI): Asset[] =>
+const styleAssets = ($: ReturnType<typeof load>): Asset[] =>
   $('link[rel=stylesheet]')
     .toArray()
     .map(el => ({
@@ -34,7 +34,7 @@ const styleAssets = ($: CheerioAPI): Asset[] =>
     }))
 
 export const linkedAssets = (html: string): Asset[] => {
-  const $ = cheerio.load(html)
+  const $ = load(html)
   return [...scriptAssets($), ...styleAssets($)]
 }
 
