@@ -8,6 +8,7 @@ async function run(): Promise<void> {
     const base: string = core.getInput('base')
     const size = await bundleSize({path, base})
     core.setOutput('size', size)
+    process.exit(0)
   } catch (error) {
     if (error instanceof Error) core.setFailed(error.message)
   }
