@@ -161,6 +161,7 @@ function run() {
             const base = core.getInput('base');
             const size = yield (0, bundle_size_1.default)({ path, base });
             core.setOutput('size', size);
+            process.exit(0);
         }
         catch (error) {
             if (error instanceof Error)
