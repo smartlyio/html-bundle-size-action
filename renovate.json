@@ -1,6 +1,6 @@
 {
   "extends": [
-    "config:base",
+    "config:best-practices",
     ":preserveSemverRanges"
   ],
   "lockFileMaintenance": {
@@ -122,5 +122,6 @@
       "renovate-deps"
     ],
     "automerge": true
-  }
+  },
+  "minimumReleaseAge": "30 days"
 }
