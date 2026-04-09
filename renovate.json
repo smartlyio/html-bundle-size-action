@@ -1,5 +1,8 @@
 {
-  "extends": ["config:best-practices"],
+  "extends": [
+    "config:best-practices",
+    ":preserveSemverRanges"
+  ],
   "lockFileMaintenance": {
     "enabled": true,
     "labels": ["patch", "renovate-deps"]
@@ -8,6 +11,14 @@
     "enabled": true
   },
   "packageRules": [
+    {
+      "matchUpdateTypes": [
+        "pin",
+        "pinDigest"
+      ],
+      "minimumReleaseAge": null,
+      "automerge": true
+    },
     {
       "groupName": "dependencies",
       "matchUpdateTypes": ["major"],
